@@ -10,7 +10,7 @@ const path = require('path');
 const config = {
   // Token bot Telegram — dapat dari @BotFather.
   // Wajib diset sebagai env var untuk mengaktifkan bot; tanpa token, web-only mode.
-  botToken: process.env.TELEGRAM_BOT_TOKEN || '8773654941:AAFd0whE4XitRwgE6iRPQDtZRZKU1LYx52g',
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '8773654941:AAEcvtMeRQFN51-Td1BViC9P82XtHBejPUQ',
 
   // 💾 Penyimpanan persisten (SQLite) — daftar email tidak hilang saat restart
   //   - Railway:  set DATA_DIR=/data (volume) → DB disimpan di volume
