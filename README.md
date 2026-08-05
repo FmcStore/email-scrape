@@ -1,8 +1,8 @@
 <div align="center">
 
-# 📧 Emailnator Bot — Telegram
+# 📧 Emailnator — Bot Telegram + Web Dashboard
 
-**Bot Telegram untuk generate email sementara (disposable email) & cek inbox langsung dari Telegram.**
+**Generate email sementara (disposable email) & cek inbox langsung dari Telegram ATAU dari browser (Web Dashboard).**
 
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](https://python.org)
@@ -25,6 +25,7 @@ Dibangun di atas [Emailnator](https://www.emailnator.com) — **Node.js** untuk 
 | 📋 **Multi-email** | Simpan banyak email & ganti-ganti kapan saja |
 | 💾 **Penyimpanan persisten** | SQLite (`better-sqlite3`) — daftar email **tidak hilang** saat restart/redeploy |
 | 🔘 **Kontrol via tombol** | Semua aksi pakai inline keyboard — tanpa hafal command |
+| 🌐 **Web Dashboard** | Dashboard browser dengan fitur **sama persis** seperti bot — buat email, cek inbox, baca pesan, salin kode OTP |
 | 🧠 **Bypass Cloudflare** | Python `cloudscraper` menangani proteksi situs |
 | 🚀 **Siap deploy** | Dockerfile + railway.toml untuk auto-build di Railway |
 
@@ -45,8 +46,8 @@ Dibangun di atas [Emailnator](https://www.emailnator.com) — **Node.js** untuk 
 ### 1. Clone project
 
 ```bash
-git clone https://github.com/bianmbut58-netizen/emailnator-bot.git
-cd emailnator-bot
+git clone https://github.com/bianmbut58-netizen/emailnator-v2.git
+cd emailnator-v2
 ```
 
 ### 2. Install dependencies
@@ -64,17 +65,11 @@ pip install -r requirements.txt
 Dapatkan token dari [@BotFather](https://t.me/BotFather) → `/newbot`. Lalu set sebagai **environment variable** (cara paling aman):
 
 ```bash
-export TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklmNOPqrStuVWXyz"
+export TELEGRAM_BOT_TOKEN="<TOKEN_DARI_BOTFATHER>"
 npm start
 ```
 
-**Atau** isi langsung di `src/config.js` (untuk pengembangan lokal saja):
-
-```js
-botToken: '1234567890:ABCdefGHIjklmNOPqrStuVWXyz',
-```
-
-> 🔒 `process.env.TELEGRAM_BOT_TOKEN` selalu diprioritaskan. Kalau env var terisi, token di `config.js` diabaikan.
+> 🔒 `TELEGRAM_BOT_TOKEN` dibaca dari environment variable. Kalau token tidak diisi, aplikasi tetap menjalankan Web Dashboard dalam **web-only mode** tanpa bot Telegram.
 
 > 💾 **Penyimpanan email** otomatis tersimpan di SQLite (`./data/emailnator.db` secara lokal). Untuk mengubah lokasi, set env var `DATA_DIR` (contoh: `export DATA_DIR=/data`).
 
@@ -87,6 +82,47 @@ npm run dev
 ```
 
 Kalau sukses, log muncul: `🤖 Emailnator Bot is running...` — langsung coba kirim `/start` ke bot kamu di Telegram.
+
+> 🎛️ **Web Dashboard juga ikut jalan** di `http://localhost:3000` (port bisa diubah via env `PORT`).
+
+---
+
+## 🌐 Web Dashboard
+
+Selain bot Telegram, project ini menyertakan **dashboard web** dengan fitur yang **sama persis** dengan bot:
+
+| Fitur | Bot Telegram | Web Dashboard |
+| ----- | ------------ | ------------- |
+| Buat email baru | ✅ `/new` | ✅ tombol **✨ Buat Email Baru** |
+| Cek inbox | ✅ `/inbox` | ✅ tombol **🔄 Refresh** (+ auto-refresh 30 detik) |
+| Baca isi pesan | ✅ tap nomor pesan | ✅ klik pesan di daftar |
+| Deteksi & salin kode OTP | ✅ tombol Copy Kode | ✅ banner 🔑 + tombol **Salin Kode** |
+| Multi-email & ganti aktif | ✅ `/list` | ✅ klik email di sidebar (✅ = aktif) |
+| Penyimpanan persisten | ✅ SQLite | ✅ SQLite (akun web terpisah dari pengguna Telegram) |
+
+### Akses & Login
+
+1. Buka `http://localhost:3000` (atau URL Railway kamu)
+2. Masukkan **password** — default `admin123`
+3. ⚠️ **WAJIB ganti password** di production dengan set env var:
+
+```bash
+export WEB_PASSWORD="password-rahasia-kamu"
+npm start
+```
+
+### Konfigurasi
+
+| Env var | Default | Fungsi |
+| ------- | ------- | ------ |
+| `PORT` | `3000` | Port web dashboard (Railway otomatis mengisi ini) |
+| `WEB_PASSWORD` | `admin123` | Password login dashboard — **ganti di production!** |
+
+### Catatan
+
+- Dashboard web memakai **satu akun bersama** (chat_id `-1`) — semua browser yang login berbagi daftar email yang sama, tersimpan persisten di SQLite.
+- Session login berupa cookie HttpOnly yang bertahan **7 hari**.
+- Kalau `TELEGRAM_BOT_TOKEN` tidak diisi, web dashboard tetap bisa jalan (bot dilewati).
 
 ---
 
@@ -183,7 +219,7 @@ Metadata (`from`, `subject`, `time`) di-extract dengan fallback berlapis: select
 
 ```
 emailnator-bot/
-├── bot.js                 # 🚀 Entry point — semua logika bot Telegram
+├── bot.js                 # 🚀 Entry point — logika bot Telegram + start web dashboard
 ├── package.json           # Dependencies & scripts
 ├── package-lock.json      # Lockfile (untuk build reproducible)
 ├── requirements.txt       # Dep Python: cloudscraper
@@ -192,11 +228,17 @@ emailnator-bot/
 ├── .dockerignore          # File yang dikecualikan saat Docker build
 ├── .gitignore             # Ignore rules (node_modules, .env, dll)
 ├── README.md              # Dokumentasi (ini)
+├── public/                # 🌐 Web dashboard (statis)
+│   ├── index.html         #   Halaman login + dashboard
+│   ├── style.css          #   Tema gelap modern
+│   └── app.js             #   Logika frontend (fetch API, render inbox, copy OTP)
 ├── src/
-│   ├── config.js          # 🔧 Konfigurasi (token, polling, storage, pesan)
+│   ├── config.js          # 🔧 Konfigurasi (token, polling, storage, web, pesan)
 │   ├── emailnator.js      # Core class Emailnator (create/inbox/read)
 │   ├── emailnator.py      # 🐍 Bridge Python — bypass Cloudflare via cloudscraper
-│   └── storage.js         # 💾 Penyimpanan persisten SQLite (users & emails)
+│   ├── storage.js         # 💾 Penyimpanan persisten SQLite (users & emails)
+│   ├── utils.js           # 🧰 Helper bersama bot & web (escape, waktu, deteksi OTP)
+│   └── web.js             # 🌐 Server Express + API dashboard (login, inbox, pesan)
 └── examples/
     └── usage.js           # Contoh pemakaian tanpa bot (npm test)
 ```
@@ -211,20 +253,21 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 
 1. **Push** repo ini ke GitHub
 2. Buka [Railway](https://railway.app) → **New Project → Deploy from GitHub repo** → pilih repo ini
-3. Railway otomatis membaca `railway.toml` dan build lewat `Dockerfile` (Node 20 + Python 3 + cloudscraper)
+3. Railway otomatis membaca `railway.toml` dan build lewat `Dockerfile` (Node 22 + Python 3 + cloudscraper)
 4. Di tab **Variables**, tambahkan:
    ```
    TELEGRAM_BOT_TOKEN = <token dari @BotFather>
+   WEB_PASSWORD       = <password dashboard web>
    ```
-5. **Deploy** — bot langsung online. Log akan menunjukkan `🤖 Emailnator Bot is running...`
+5. **Deploy** — bot langsung online, dan **Web Dashboard** otomatis tersedia di URL Railway (`*.up.railway.app`). Log akan menunjukkan `🤖 Emailnator Bot is running...` + `🌐 Web dashboard: http://...`
 6. *(Penting)* **Pasang Volume** supaya daftar email tersimpan permanen:
    - Buka **Deployments → Service → Volumes** → **Add Volume** → mount path `/data`
    - atau via CLI: `railway volume add --mount-path /data`
 
 ### Cara kerja config
 
-- **`Dockerfile`** — image `node:20-slim`, install `python3`/`python3-pip`, lalu `npm ci` + `pip install -r requirements.txt`. Perintah: `node bot.js`. Sudah set `ENV DATA_DIR=/data` + `mkdir /data`.
-- **`railway.toml`** — `builder = "DOCKERFILE"`, `startCommand = "node bot.js"`, restart otomatis `ON_FAILURE` (max 10×), tanpa HTTP healthcheck (bot tidak punya web server). **Catatan:** `railway.toml` tidak mendukung blok `[volumes]` — volume dipasang via dashboard/CLI (lihat langkah 6).
+- **`Dockerfile`** — image `node:22-slim`, install `python3`/`python3-pip`, lalu `npm ci` + `pip install -r requirements.txt`. Perintah: `node bot.js`. Sudah set `ENV DATA_DIR=/data` + `mkdir /data`.
+- **`railway.toml`** — `builder = "DOCKERFILE"`, `startCommand = "node bot.js"`, restart otomatis `ON_FAILURE` (max 10×), HTTP healthcheck ke `/api/health` (web dashboard menyediakan endpoint ini). **Catatan:** `railway.toml` tidak mendukung blok `[volumes]` — volume dipasang via dashboard/CLI (lihat langkah 6).
 - **Token TIDAK dideklarasikan di `railway.toml`** — karena variabel di toml *menimpa* variabel dashboard. Token harus di-set di tab Variables Railway.
 
 ### 💾 Penyimpanan persisten di Railway
@@ -246,8 +289,8 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 | `Create failed: 403` / `Inbox failed: 403` | Cloudflare memblokir / pola request berubah | Update `cloudscraper`: `pip install -U cloudscraper` |
 | `Read failed: 500` | messageID sudah kedaluwarsa / tidak valid | Kembali ke inbox & refresh, lalu tap ulang pesan |
 | Bot tidak menjawab, log `ETELEGRAM 409 Conflict` | Bot jalan di **2 proses sekaligus** (polling dobel) | Hentikan proses lama, jalankan hanya satu instance |
-| `ETELEGRAM 401 Unauthorized` | Token salah / sudah di-revoke | Ganti token di @BotFather & update `TELEGRAM_BOT_TOKEN` / `config.js` |
-| `❌ Token bot belum diisi!` lalu exit | `botToken` kosong di config & env var tidak ada | Set `TELEGRAM_BOT_TOKEN` atau isi `src/config.js` |
+| `ETELEGRAM 401 Unauthorized` | Token salah / sudah di-revoke | Ganti token di @BotFather lalu update variable `TELEGRAM_BOT_TOKEN` di environment/Railway |
+| `⚠️ TELEGRAM_BOT_TOKEN tidak diisi` | Token belum diset | Web tetap jalan dalam web-only mode; set `TELEGRAM_BOT_TOKEN` jika ingin mengaktifkan Telegram |
 | Daftar email hilang setelah restart | ~~Data tersimpan di memory~~ → **sudah diperbaiki**: sekarang tersimpan di SQLite | Pastikan volume Railway terpasang di `/data` (lihat bagian Deploy) |
 | `Gagal cek inbox: ...` | Jaringan ke emailnator.com bermasalah | Cek koneksi & coba lagi |
 | `Unexpected response from Emailnator (no email returned)` | Respons situs berubah / bukan JSON | Update bot ke versi terbaru; laporkan issue |
@@ -258,6 +301,7 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 
 - **Jangan commit token asli ke GitHub.** Token di `config.js` yang sudah pernah ter-push sebaiknya **di-revoke di [@BotFather](https://t.me/BotFather)** dan diganti.
 - Cara terbaik: set `TELEGRAM_BOT_TOKEN` sebagai **environment variable** (Railway Variables / export di shell) dan biarkan `config.js` apa adanya.
+- **Jangan pakai password default `admin123` di production** — set `WEB_PASSWORD` ke password yang kuat.
 - Bot ini memakai layanan pihak ketiga (emailnator.com) — alamat email sementara **tidak cocok** untuk data sensitif.
 
 ---

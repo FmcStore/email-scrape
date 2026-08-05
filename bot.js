@@ -2,16 +2,31 @@ const TelegramBot = require('node-telegram-bot-api');
 const Emailnator = require('./src/emailnator');
 const config = require('./src/config');
 const store = require('./src/storage');
+const { escHTML, truncate, formatTime, detectCode } = require('./src/utils');
 
 // ===================== INIT =====================
 
+// 🌐 Web dashboard — jalan bersamaan dengan bot Telegram (npm start)
+const { start: startWebServer } = require('./src/web');
+startWebServer().catch((err) => {
+  console.error('❌ Gagal start web dashboard:', err.message);
+});
+
+// Token bot Telegram — kalau tidak diisi, hanya web dashboard yang jalan (web-only mode)
+let bot = null;
 if (!config.botToken) {
-  console.error('❌ Token bot belum diisi!');
-  console.error('   Buka src/config.js dan isi field botToken dengan token dari @BotFather');
-  process.exit(1);
+  console.warn('⚠️ TELEGRAM_BOT_TOKEN tidak diisi — bot Telegram dilewati, hanya web dashboard yang berjalan.');
+} else {
+  bot = new TelegramBot(config.botToken, { polling: config.polling });
 }
 
-const bot = new TelegramBot(config.botToken, { polling: config.polling });
+// Bungkus handler agar aman saat bot null (web-only mode)
+function on(event, handler) {
+  if (bot) bot.on(event, handler);
+}
+function onText(regex, handler) {
+  if (bot) bot.onText(regex, handler);
+}
 
 // Kode terakhir yang terdeteksi per chat (dipakai tombol 📋 Copy Kode)
 const lastCodeByChat = new Map();
@@ -47,60 +62,6 @@ function pushNewEmail(chatId, email) {
     store.addEmail(chatId, u.active);
   }
   store.setActive(chatId, email);
-}
-
-function escHTML(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function truncate(text, maxLen) {
-  if (!text || text.length <= maxLen) return escHTML(text || '<i>(kosong)</i>');
-  return escHTML(text.slice(0, maxLen)) + '\n\n...<i>(dipotong, terlalu panjang)</i>';
-}
-
-/**
- * Format waktu agar ringkas & konsisten.
- * - Date valid → "01 Agu 2026, 14.05" (lokal)
- * - Header mentah seperti "Fri, 1 Aug 2026 10:32:05 +0000" → ambil jam:menit
- * - Kalau tidak bisa di-parse → potong aslinya
- */
-function formatTime(t) {
-  if (!t) return '';
-  const s = String(t).trim();
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) {
-    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${dd} ${bulan[d.getMonth()]}, ${hh}:${mm}`;
-  }
-  const hm = s.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
-  if (hm) return hm[1];
-  return s.slice(0, 16);
-}
-
-/**
- * Deteksi kode (OTP / verifikasi) di dalam isi pesan.
- * - Prioritas 1: deretan 4-8 angka yang berdiri sendiri (mis. "123456")
- * - Prioritas 2: token alfanumerik 5-12 karakter yang wajib berisi angka + huruf
- * Mengembalikan kode (string) atau null kalau tidak ada.
- */
-function detectCode(text) {
-  if (!text) return null;
-  const s = String(text);
-  const otp = s.match(/(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])/);
-  if (otp) return otp[1];
-  for (const tok of s.match(/[A-Za-z0-9]{5,12}/g) || []) {
-    if (/\d/.test(tok) && /[A-Za-z]/.test(tok)) return tok;
-  }
-  return null;
 }
 
 function buildInboxKeyboard(inbox) {
@@ -172,7 +133,7 @@ async function sendInbox(chatId, msgId, email) {
 
 // ===================== COMMANDS =====================
 
-bot.onText(/^\/start$/, async (msg) => {
+onText(/^\/start$/, async (msg) => {
   const chatId = msg.chat.id;
   await bot.sendMessage(
     chatId,
@@ -194,7 +155,7 @@ bot.onText(/^\/start$/, async (msg) => {
   );
 });
 
-bot.onText(/^\/new$/, async (msg) => {
+onText(/^\/new$/, async (msg) => {
   const chatId = msg.chat.id;
   const status = await bot.sendMessage(chatId, '⏳ Lagi bikin email baru...');
 
@@ -225,7 +186,7 @@ bot.onText(/^\/new$/, async (msg) => {
   }
 });
 
-bot.onText(/^\/list$/, async (msg) => {
+onText(/^\/list$/, async (msg) => {
   const chatId = msg.chat.id;
   const u = getUser(chatId);
 
@@ -248,7 +209,7 @@ bot.onText(/^\/list$/, async (msg) => {
   );
 });
 
-bot.onText(/^\/inbox$/, async (msg) => {
+onText(/^\/inbox$/, async (msg) => {
   const chatId = msg.chat.id;
   const email = getActiveEmail(chatId);
 
@@ -273,7 +234,7 @@ bot.onText(/^\/inbox$/, async (msg) => {
 
 // ===================== CALLBACK QUERY =====================
 
-bot.on('callback_query', async (query) => {
+on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const msgId = query.message.message_id;
   const data = query.data;
@@ -502,11 +463,13 @@ bot.on('callback_query', async (query) => {
 
 // ===================== POLLING ERROR =====================
 
-bot.on('polling_error', (err) => {
+on('polling_error', (err) => {
   console.error('⚠️ Polling error:', err.message);
 });
 
-console.log('🤖 Emailnator Bot is running...');
-console.log('   Mode: polling');
+if (bot) {
+  console.log('🤖 Emailnator Bot is running...');
+  console.log('   Mode: polling (bot Telegram + web dashboard di port ' + config.web.port + ')');
+}
 
 module.exports = bot;

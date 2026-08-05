@@ -6,9 +6,9 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node bot.js"
-# The bot is a Telegram long-polling process with no HTTP endpoint,
-# so no HTTP healthcheck path is used (Railway monitors the process).
-healthcheckPath = ""
+# The app now serves an HTTP web dashboard (Express) with a /api/health
+# endpoint, so Railway can use HTTP healthchecks.
+healthcheckPath = "/api/health"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 

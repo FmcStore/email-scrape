@@ -1,16 +1,16 @@
 /**
  * Emailnator Bot — Configuration
  *
- * 📌 Isi langsung token bot Telegram kamu di bawah ini.
- * Jangan commit ke GitHub kalo token-nya asli! Simpan untuk local aja.
+ * Token bot dibaca dari environment variable TELEGRAM_BOT_TOKEN.
+ * Jangan pernah menaruh token asli langsung di source code atau GitHub.
  */
 
 const path = require('path');
 
 const config = {
-  // Token bot Telegram — dapat dari @BotFather
-  // Isi langsung di sini, atau set env var TELEGRAM_BOT_TOKEN (dipakai untuk deploy di Railway)
-  botToken: process.env.TELEGRAM_BOT_TOKEN || '8773654941:AAFd0whE4XitRwgE6iRPQDtZRZKU1LYx52g',
+  // Token bot Telegram — dapat dari @BotFather.
+  // Wajib diset sebagai env var untuk mengaktifkan bot; tanpa token, web-only mode.
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '',
 
   // 💾 Penyimpanan persisten (SQLite) — daftar email tidak hilang saat restart
   //   - Railway:  set DATA_DIR=/data (volume) → DB disimpan di volume
@@ -35,6 +35,15 @@ const config = {
     timeout: 30000,
     userAgent:
       'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36',
+  },
+
+  // 🌐 Web dashboard (src/web.js)
+  //   - Password default 'admin123' — WAJIB ganti via env WEB_PASSWORD di production!
+  //   - Port: env PORT otomatis diset Railway; lokal default 3000
+  web: {
+    port: Number(process.env.PORT) || 3000,
+    password: process.env.WEB_PASSWORD || 'admin123',
+    usingDefaultPassword: !process.env.WEB_PASSWORD,
   },
 
   // Format pesan

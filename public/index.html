@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emailnator Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="view-login" class="view hidden">
+    <div class="login-card">
+      <div class="login-logo">📧</div>
+      <h1>Emailnator Dashboard</h1>
+      <p class="login-sub">Email sementara &amp; inbox langsung dari browser.<br />Fitur lengkap seperti bot Telegram.</p>
+      <form id="login-form" autocomplete="off">
+        <div class="field">
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+        </div>
+        <button type="submit" id="btn-login" class="btn btn-primary btn-block">🔓 Masuk</button>
+      </form>
+      <p id="login-error" class="error hidden"></p>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="view-app" class="view hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">📧</span>
+        <span class="brand-text">Emailnator</span>
+      </div>
+
+      <div class="sidebar-section">
+        <button id="btn-create" class="btn btn-primary btn-block" disabled>
+          <span class="btn-label">✨ Buat Email Baru</span>
+          <span class="spinner hidden"></span>
+        </button>
+      </div>
+
+      <div class="sidebar-section grow">
+        <div class="section-title">Email Tersimpan</div>
+        <div id="email-list" class="email-list">
+          <p class="muted empty-hint">Belum ada email. Klik "Buat Email Baru" untuk mulai 🚀</p>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="btn-logout" class="btn btn-ghost btn-block">⏻ Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2 id="page-title">📬 Inbox</h2>
+          <div class="active-email-wrap">
+            <span id="active-email" class="chip">Belum ada email aktif</span>
+            <button id="btn-copy-email" class="btn btn-icon btn-sm" title="Salin email" disabled>📋</button>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span id="last-updated" class="muted"></span>
+          <button id="btn-refresh" class="btn btn-icon" title="Refresh inbox" disabled>🔄</button>
+        </div>
+      </header>
+
+      <section id="view-inbox" class="content">
+        <div id="inbox-state" class="state-box hidden"></div>
+        <div id="inbox-list" class="inbox-list"></div>
+      </section>
+
+      <section id="view-message" class="content hidden">
+        <button id="btn-back" class="btn btn-ghost">⬅️ Kembali ke Inbox</button>
+        <div id="message-detail"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

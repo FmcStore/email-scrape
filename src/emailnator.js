@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const cheerio = require('cheerio');
 const config = require('./config');
@@ -9,11 +9,14 @@ const PY_SCRIPT = path.join(__dirname, 'emailnator.py');
  * Call Python cloudscraper bridge and return parsed result
  */
 function pyCall(...args) {
-  const cmd = `python3 "${PY_SCRIPT}" ${args.map(a => `"${String(a).replace(/"/g, '\\"')}"`).join(' ')}`;
-
+  // Teruskan argumen tanpa shell agar input request tidak bisa menjadi
+  // command injection melalui karakter seperti $(), backtick, atau ;.
   let stdout;
   try {
-    stdout = execSync(cmd, { timeout: config.emailnator.timeout, encoding: 'utf-8' });
+    stdout = execFileSync('python3', [PY_SCRIPT, ...args.map(String)], {
+      timeout: config.emailnator.timeout,
+      encoding: 'utf-8',
+    });
   } catch (err) {
     // Python exited non-zero — it prints a JSON error to stdout
     try {

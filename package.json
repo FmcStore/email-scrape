@@ -23,6 +23,7 @@
   "dependencies": {
     "better-sqlite3": "^13.0.2",
     "cheerio": "^1.0.0",
+    "express": "^5.2.1",
     "node-telegram-bot-api": "^0.66.0"
   }
 }
