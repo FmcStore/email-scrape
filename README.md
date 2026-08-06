@@ -288,6 +288,8 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 | `❌ Gagal baca pesan: Unexpected token '<', "<div dir=..." is not valid JSON` | **Bug lama** — sudah diperbaiki. Pastikan versi `src/emailnator.js` terbaru (output HTML sekarang di-parse dengan cheerio, bukan JSON) | `git pull` + restart bot |
 | `Create failed: 403` / `Inbox failed: 403` | Cloudflare memblokir / pola request berubah | Update `cloudscraper`: `pip install -U cloudscraper` |
 | `Read failed: 500` | messageID sudah kedaluwarsa / tidak valid | Kembali ke inbox & refresh, lalu tap ulang pesan |
+| `❌ ID pesan tidak valid` saat klik pesan di Web Dashboard | Bug validasi messageID terlalu ketat (ID asli Emailnator bisa memuat titik/dash/@ — sudah diperbaiki) | `git pull` + redeploy ke Railway; klik pesan lagi |
+| Bot tidak menjawab & **tidak ada error log** | (a) `TELEGRAM_BOT_TOKEN` belum terbaca → web-only mode, (b) deployment lama, atau (c) kamu chat ke bot yang beda | Set `TELEGRAM_BOT_TOKEN` di Railway Variables lalu **Redeploy/Restart**; cek log muncul `🤖 Bot Telegram terhubung: @username` — kalau tidak, berarti token belum terbaca |
 | Bot tidak menjawab, log `ETELEGRAM 409 Conflict` | Bot jalan di **2 proses sekaligus** (polling dobel) | Hentikan proses lama, jalankan hanya satu instance |
 | `ETELEGRAM 401 Unauthorized` | Token salah / sudah di-revoke | Ganti token di @BotFather lalu update variable `TELEGRAM_BOT_TOKEN` di environment/Railway |
 | `⚠️ TELEGRAM_BOT_TOKEN tidak diisi` | Token belum diset | Web tetap jalan dalam web-only mode; set `TELEGRAM_BOT_TOKEN` jika ingin mengaktifkan Telegram |

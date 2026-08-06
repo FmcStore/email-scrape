@@ -208,15 +208,19 @@ app.get('/api/inbox', async (req, res) => {
 });
 
 /** Baca detail satu pesan (deteksi kode OTP otomatis) */
-app.get('/api/messages/:id', async (req, res) => {
+// Pakai wildcard `*id` (Express 5) supaya ID yang memuat karakter khusus
+// (titik, dash, plus, @, dsb.) tetap tertangkap sebagai satu parameter.
+app.get('/api/messages/*id', async (req, res) => {
   const email = store.getUser(WEB_USER_ID).active;
   if (!email) {
     return res.status(400).json({ error: 'Belum ada email aktif.' });
   }
-  // Message ID berasal dari Emailnator. Batasi format dan panjang sebelum
-  // diteruskan ke bridge Python; ini juga mencegah input URL yang aneh.
+  // Message ID dari Emailnator bisa memuat titik/dash/karakter lain dan cukup
+  // panjang, jadi jangan pakai whitelist ketat. ID diteruskan ke bridge Python
+  // via execFileSync (tanpa shell) sehingga tidak ada risiko command injection;
+  // cukup tolak ID kosong, terlalu panjang, atau mengandung karakter kontrol.
   const messageId = String(req.params.id || '');
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(messageId)) {
+  if (!messageId || messageId.length > 512 || /[\u0000-\u001f\u007f]/.test(messageId)) {
     return res.status(400).json({ error: 'ID pesan tidak valid' });
   }
   try {

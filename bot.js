@@ -18,7 +18,27 @@ if (!config.botToken) {
   console.warn('⚠️ TELEGRAM_BOT_TOKEN tidak diisi — bot Telegram dilewati, hanya web dashboard yang berjalan.');
 } else {
   bot = new TelegramBot(config.botToken, { polling: config.polling });
+  // Verifikasi token saat start — kalau token salah/revoked langsung terlihat
+  // jelas di log (bukan gagal diam-diam tanpa respons).
+  bot
+    .getMe()
+    .then((me) => {
+      console.log(`🤖 Bot Telegram terhubung: @${me.username} (id ${me.id})`);
+    })
+    .catch((err) => {
+      console.error('❌ Gagal verifikasi token bot Telegram:');
+      console.error('   ', err.message);
+      console.error('   → Cek TELEGRAM_BOT_TOKEN di Railway Variables (pastikan tidak ada spasi/enter), lalu Redeploy/Restart.');
+      console.error('   → Kalau token lama pernah bocor/revoked, generate token baru di @BotFather.');
+      console.error('   → Kalau token sudah benar, cek koneksi server ke api.telegram.org.');
+    });
 }
+
+// Jangan biarkan promise yang gagal mematikan proses diam-diam (crash-loop di
+// Railway). Log dulu supaya penyebabnya terlihat di log.
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Unhandled rejection:', reason?.stack || reason);
+});
 
 // Bungkus handler agar aman saat bot null (web-only mode)
 function on(event, handler) {
@@ -27,6 +47,15 @@ function on(event, handler) {
 function onText(regex, handler) {
   if (bot) bot.onText(regex, handler);
 }
+
+// 📩 Log semua pesan masuk — memudahkan debugging di Railway kalau bot terasa
+// tidak merespons (pesan terkirim? ke chat mana? isinya apa?)
+on('message', (msg) => {
+  const from =
+    (msg.from && (msg.from.username || `${msg.from.first_name || ''} ${msg.from.last_name || ''}`.trim() || msg.from.id)) ||
+    '?';
+  console.log(`📩 [chat ${msg.chat.id}] ${from}: ${String(msg.text || '[non-teks]').slice(0, 120)}`);
+});
 
 // Kode terakhir yang terdeteksi per chat (dipakai tombol 📋 Copy Kode)
 const lastCodeByChat = new Map();
@@ -463,8 +492,26 @@ on('callback_query', async (query) => {
 
 // ===================== POLLING ERROR =====================
 
+// Hint solusi hanya dicetak SEKALI per jenis error — kalau token rusak, polling
+// error muncul tiap ~300ms dan hint berulang bisa membanjiri log Railway.
+const seenPollingHints = new Set();
 on('polling_error', (err) => {
-  console.error('⚠️ Polling error:', err.message);
+  const msg = String((err && err.message) || '');
+  console.error('⚠️ Polling error:', msg);
+  const kind = /401|Unauthorized/i.test(msg) ? '401' : /409|Conflict/i.test(msg) ? '409' : null;
+  if (kind && !seenPollingHints.has(kind)) {
+    seenPollingHints.add(kind);
+    if (kind === '401') {
+      console.error('   → Token tidak valid/sudah di-revoke. Buat token baru di @BotFather, perbarui TELEGRAM_BOT_TOKEN, lalu redeploy.');
+    } else {
+      console.error('   → Token sedang dipakai instance lain atau webhook aktif. Matikan instance lain, atau jalankan /deletewebhook pada bot.');
+    }
+  }
+});
+
+// Tangkap error lain dari library bot supaya tidak gagal diam-diam
+on('error', (err) => {
+  console.error('⚠️ Bot error:', (err && err.message) || err);
 });
 
 if (bot) {
