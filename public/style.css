@@ -73,64 +73,6 @@ body {
 /* ===================== VIEWS ===================== */
 .view { min-height: 100vh; }
 
-/* ===================== LOGIN ===================== */
-#view-login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(900px 500px at 20% -10%, rgba(99, 102, 241, 0.22), transparent 60%),
-    radial-gradient(800px 500px at 90% 110%, rgba(34, 211, 238, 0.16), transparent 60%),
-    var(--bg);
-  padding: 20px;
-}
-.login-card {
-  width: 100%;
-  max-width: 400px;
-  background: linear-gradient(180deg, var(--card), var(--bg-2));
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 40px 34px;
-  text-align: center;
-  box-shadow: var(--shadow);
-  animation: pop 0.35s ease;
-}
-@keyframes pop {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
-.login-logo {
-  font-size: 3rem;
-  margin-bottom: 10px;
-  filter: drop-shadow(0 6px 16px rgba(99, 102, 241, 0.45));
-}
-.login-card h1 {
-  font-size: 1.5rem;
-  background: linear-gradient(90deg, #a5b4fc, #67e8f9);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 8px;
-}
-.login-sub { color: var(--muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 26px; }
-.field { margin-bottom: 14px; }
-.field input {
-  width: 100%;
-  padding: 13px 15px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-2);
-  color: var(--text);
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.field input:focus {
-  border-color: var(--accent-1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-}
-.error { color: var(--red); font-size: 0.88rem; margin-top: 12px; }
-
 /* ===================== APP LAYOUT ===================== */
 #view-app { display: flex; }
 

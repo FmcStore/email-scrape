@@ -10,8 +10,8 @@
  *   - Ganti email aktif (multi-email)
  *   - Penyimpanan persisten (SQLite — src/storage.js)
  *
- * Auth: password tunggal (config.web.password / env WEB_PASSWORD).
- * Session disimpan in-memory, cookie HttpOnly bertahan 7 hari.
+ * Dashboard bersifat publik (tanpa login/password) — dirancang untuk dipakai
+ * banyak orang sekaligus sebagai layanan email sementara gratis.
  *
  * Web dashboard memakai SATU akun bersama (WEB_USER_ID = -1). Data emailnya
  * tersimpan di database SQLite yang sama dengan bot, tapi di bawah chat_id
@@ -19,7 +19,6 @@
  */
 
 const path = require('path');
-const crypto = require('crypto');
 const express = require('express');
 const config = require('./config');
 const Emailnator = require('./emailnator');
@@ -29,6 +28,10 @@ const { formatTime, detectCode } = require('./utils');
 const WEB_USER_ID = -1;
 
 const app = express();
+
+// Railway/Cloudflare dkk memakai proxy — percayai X-Forwarded-For supaya
+// rate limit per-IP bekerja per pengunjung, bukan satu IP proxy bersama.
+app.set('trust proxy', 1);
 
 // Security headers harus dipasang sebelum static/API middleware agar berlaku
 // untuk response frontend maupun endpoint JSON.
@@ -44,106 +47,38 @@ app.use(express.json());
 // File statis dashboard (public/)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Session token → waktu dibuat (in-memory). Token kedaluwarsa setelah 7 hari.
-const sessions = new Map();
-const SESSION_COOKIE = 'eweb';
-const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 hari
+// ===================== API (publik, tanpa login) =====================
 
-function getCookieToken(req) {
-  const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
-  return m ? m[1] : null;
-}
+// Rate limit sederhana per IP untuk endpoint yang membuat resource baru
+// (bisa disalahgunakan karena dashboard publik): maks 10 email per menit.
+const createLimits = new Map();
+const CREATE_MAX = 10;
+const CREATE_WINDOW = 60 * 1000; // 1 menit
 
-/** Bandingkan password secara timing-safe */
-function safeEqual(a, b) {
-  const ba = Buffer.from(String(a ?? ''));
-  const bb = Buffer.from(String(b ?? ''));
-  if (ba.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
-
-/** Bersihkan session yang sudah kedaluwarsa (dipanggil saat login) */
-function pruneSessions() {
-  const cutoff = Date.now() - SESSION_MAX_AGE;
-  for (const [token, createdAt] of sessions) {
-    if (createdAt < cutoff) sessions.delete(token);
-  }
-}
-
-// Rate limit login sederhana: maks 10 percobaan per 5 menit per IP
-const loginAttempts = new Map();
-const LOGIN_MAX_ATTEMPTS = 10;
-const LOGIN_WINDOW = 5 * 60 * 1000;
-
-function rateLimitLogin(req, res, next) {
-  if (loginAttempts.size > 500) {
-    // jaga agar Map tidak membengkak: buang entri basi
-    const cutoff = Date.now() - LOGIN_WINDOW;
-    for (const [ip, rec] of loginAttempts) {
-      if (rec.resetAt < cutoff) loginAttempts.delete(ip);
-    }
-  }
+function rateLimitCreate(req, res, next) {
   const ip = req.ip || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
-  const rec = loginAttempts.get(ip);
+  const rec = createLimits.get(ip);
   if (!rec || now > rec.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW });
+    createLimits.set(ip, { count: 1, resetAt: now + CREATE_WINDOW });
     return next();
   }
   rec.count += 1;
-  if (rec.count > LOGIN_MAX_ATTEMPTS) {
-    return res.status(429).json({ error: 'Terlalu banyak percobaan login. Coba lagi nanti.' });
+  if (rec.count > CREATE_MAX) {
+    return res.status(429).json({ error: 'Terlalu banyak permintaan. Coba lagi nanti.' });
   }
   next();
 }
 
-// ===================== AUTH MIDDLEWARE =====================
-
-app.use('/api', (req, res, next) => {
-  if (req.path === '/login' || req.path === '/health') return next();
-  const token = getCookieToken(req);
-  const createdAt = token ? sessions.get(token) : undefined;
-  if (createdAt === undefined) {
-    return res.status(401).json({ error: 'Sesi berakhir, silakan login ulang' });
+// Jaga agar Map tidak membengkak: buang entri basi secara berkala.
+setInterval(() => {
+  const cutoff = Date.now() - CREATE_WINDOW;
+  for (const [ip, rec] of createLimits) {
+    if (rec.resetAt < cutoff) createLimits.delete(ip);
   }
-  if (Date.now() - createdAt > SESSION_MAX_AGE) {
-    sessions.delete(token);
-    return res.status(401).json({ error: 'Sesi kedaluwarsa, silakan login ulang' });
-  }
-  req.token = token;
-  next();
-});
-
-// ===================== API =====================
+}, 5 * 60 * 1000).unref();
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true });
-});
-
-app.post('/api/login', rateLimitLogin, (req, res) => {
-  if (process.env.NODE_ENV === 'production' && config.web.usingDefaultPassword) {
-    return res.status(503).json({
-      error: 'WEB_PASSWORD wajib diset sebelum dashboard production digunakan',
-    });
-  }
-  const { password } = req.body || {};
-  if (!safeEqual(password, config.web.password)) {
-    return res.status(401).json({ error: 'Password salah' });
-  }
-  pruneSessions();
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, Date.now());
-  const secure = req.secure || req.get('X-Forwarded-Proto') === 'https';
-  res.setHeader(
-    'Set-Cookie',
-    `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${SESSION_MAX_AGE / 1000}; SameSite=Lax${secure ? '; Secure' : ''}`
-  );
-  res.json({ ok: true });
-});
-
-app.post('/api/logout', (req, res) => {
-  if (req.token) sessions.delete(req.token);
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`);
   res.json({ ok: true });
 });
 
@@ -154,7 +89,7 @@ app.get('/api/me', (req, res) => {
 });
 
 /** Buat email baru → otomatis jadi email aktif */
-app.post('/api/emails', async (req, res) => {
+app.post('/api/emails', rateLimitCreate, async (req, res) => {
   try {
     const e = new Emailnator();
     const { email } = await e.create();
@@ -184,7 +119,7 @@ app.get('/api/inbox', async (req, res) => {
   if (!email) {
     return res.status(400).json({ error: 'Belum ada email aktif. Buat email dulu ya 😊' });
   }
-  // Jangan izinkan session web membaca inbox arbitrary email di luar daftar.
+  // Jangan izinkan pengunjung web membaca inbox email di luar daftar tersimpan.
   if (!user.list.includes(email)) {
     return res.status(403).json({ error: 'Email tidak terdaftar di dashboard ini' });
   }
@@ -250,11 +185,6 @@ function start(port) {
   return new Promise((resolve, reject) => {
     const server = app.listen(p, () => {
       console.log(`🌐 Web dashboard: http://localhost:${server.address().port}`);
-      if (config.web.usingDefaultPassword) {
-        console.warn(
-          '   ⚠️  Password default "admin123" dipakai! Set env WEB_PASSWORD untuk ganti.'
-        );
-      }
       resolve(server);
     });
     server.on('error', reject);

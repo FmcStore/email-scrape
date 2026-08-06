@@ -9,24 +9,8 @@
 </head>
 <body>
 
-  <!-- ============ LOGIN ============ -->
-  <div id="view-login" class="view hidden">
-    <div class="login-card">
-      <div class="login-logo">📧</div>
-      <h1>Emailnator Dashboard</h1>
-      <p class="login-sub">Email sementara &amp; inbox langsung dari browser.<br />Fitur lengkap seperti bot Telegram.</p>
-      <form id="login-form" autocomplete="off">
-        <div class="field">
-          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
-        </div>
-        <button type="submit" id="btn-login" class="btn btn-primary btn-block">🔓 Masuk</button>
-      </form>
-      <p id="login-error" class="error hidden"></p>
-    </div>
-  </div>
-
-  <!-- ============ APP ============ -->
-  <div id="view-app" class="view hidden">
+  <!-- ============ APP (publik, tanpa login) ============ -->
+  <div id="view-app" class="view">
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-icon">📧</span>
@@ -48,7 +32,7 @@
       </div>
 
       <div class="sidebar-footer">
-        <button id="btn-logout" class="btn btn-ghost btn-block">⏻ Keluar</button>
+        <span class="muted">🔓 Mode publik — semua orang berbagi inbox ini</span>
       </div>
     </aside>
 

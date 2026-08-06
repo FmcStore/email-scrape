@@ -44,7 +44,7 @@ ENV NODE_ENV=production
 
 # The app runs Telegram long-polling AND an HTTP web dashboard (Express).
 # Railway auto-injects PORT; locally it defaults to 3000 (see src/config.js).
-# The token comes from the TELEGRAM_BOT_TOKEN env var (set in Railway Variables),
-# and the dashboard password from WEB_PASSWORD (default 'admin123' — change it!).
+# The token comes from the TELEGRAM_BOT_TOKEN env var (set in Railway Variables).
+# The web dashboard is PUBLIC (no password).
 EXPOSE 3000
 CMD ["node", "bot.js"]

@@ -100,28 +100,22 @@ Selain bot Telegram, project ini menyertakan **dashboard web** dengan fitur yang
 | Multi-email & ganti aktif | ✅ `/list` | ✅ klik email di sidebar (✅ = aktif) |
 | Penyimpanan persisten | ✅ SQLite | ✅ SQLite (akun web terpisah dari pengguna Telegram) |
 
-### Akses & Login
+### Akses (Publik — tanpa login)
 
 1. Buka `http://localhost:3000` (atau URL Railway kamu)
-2. Masukkan **password** — default `admin123`
-3. ⚠️ **WAJIB ganti password** di production dengan set env var:
-
-```bash
-export WEB_PASSWORD="password-rahasia-kamu"
-npm start
-```
+2. Dashboard **langsung tampil** — tidak perlu password
+3. Semua orang yang membuka URL berbagi satu akun web bersama (inbox bersama)
 
 ### Konfigurasi
 
 | Env var | Default | Fungsi |
 | ------- | ------- | ------ |
 | `PORT` | `3000` | Port web dashboard (Railway otomatis mengisi ini) |
-| `WEB_PASSWORD` | `admin123` | Password login dashboard — **ganti di production!** |
 
 ### Catatan
 
-- Dashboard web memakai **satu akun bersama** (chat_id `-1`) — semua browser yang login berbagi daftar email yang sama, tersimpan persisten di SQLite.
-- Session login berupa cookie HttpOnly yang bertahan **7 hari**.
+- Dashboard web memakai **satu akun bersama** (chat_id `-1`) — semua pengunjung berbagi daftar email yang sama, tersimpan persisten di SQLite.
+- Dashboard bersifat **publik** — siapa pun dengan URL bisa membuat email & melihat inbox bersama.
 - Kalau `TELEGRAM_BOT_TOKEN` tidak diisi, web dashboard tetap bisa jalan (bot dilewati).
 
 ---
@@ -229,7 +223,7 @@ emailnator-bot/
 ├── .gitignore             # Ignore rules (node_modules, .env, dll)
 ├── README.md              # Dokumentasi (ini)
 ├── public/                # 🌐 Web dashboard (statis)
-│   ├── index.html         #   Halaman login + dashboard
+│   ├── index.html         #   Halaman dashboard (publik, tanpa login)
 │   ├── style.css          #   Tema gelap modern
 │   └── app.js             #   Logika frontend (fetch API, render inbox, copy OTP)
 ├── src/
@@ -238,7 +232,7 @@ emailnator-bot/
 │   ├── emailnator.py      # 🐍 Bridge Python — bypass Cloudflare via cloudscraper
 │   ├── storage.js         # 💾 Penyimpanan persisten SQLite (users & emails)
 │   ├── utils.js           # 🧰 Helper bersama bot & web (escape, waktu, deteksi OTP)
-│   └── web.js             # 🌐 Server Express + API dashboard (login, inbox, pesan)
+│   └── web.js             # 🌐 Server Express + API dashboard publik (inbox, pesan)
 └── examples/
     └── usage.js           # Contoh pemakaian tanpa bot (npm test)
 ```
@@ -257,9 +251,8 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 4. Di tab **Variables**, tambahkan:
    ```
    TELEGRAM_BOT_TOKEN = <token dari @BotFather>
-   WEB_PASSWORD       = <password dashboard web>
    ```
-5. **Deploy** — bot langsung online, dan **Web Dashboard** otomatis tersedia di URL Railway (`*.up.railway.app`). Log akan menunjukkan `🤖 Emailnator Bot is running...` + `🌐 Web dashboard: http://...`
+5. **Deploy** — bot langsung online, dan **Web Dashboard** (publik, tanpa password) otomatis tersedia di URL Railway (`*.up.railway.app`). Log akan menunjukkan `🤖 Emailnator Bot is running...` + `🌐 Web dashboard: http://...`
 6. *(Penting)* **Pasang Volume** supaya daftar email tersimpan permanen:
    - Buka **Deployments → Service → Volumes** → **Add Volume** → mount path `/data`
    - atau via CLI: `railway volume add --mount-path /data`
@@ -303,7 +296,7 @@ Project ini sudah dilengkapi **`Dockerfile` + `railway.toml`**, jadi Railway lan
 
 - **Jangan commit token asli ke GitHub.** Token di `config.js` yang sudah pernah ter-push sebaiknya **di-revoke di [@BotFather](https://t.me/BotFather)** dan diganti.
 - Cara terbaik: set `TELEGRAM_BOT_TOKEN` sebagai **environment variable** (Railway Variables / export di shell) dan biarkan `config.js` apa adanya.
-- **Jangan pakai password default `admin123` di production** — set `WEB_PASSWORD` ke password yang kuat.
+- Web dashboard bersifat **publik (tanpa password)** — siapa pun yang punya URL bisa melihat & memakai inbox bersama. Jangan simpan data sensitif di email sementara ini.
 - Bot ini memakai layanan pihak ketiga (emailnator.com) — alamat email sementara **tidak cocok** untuk data sensitif.
 
 ---

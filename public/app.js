@@ -3,7 +3,6 @@
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  loggedIn: false,
   active: null,
   emails: [],
   inbox: null,
@@ -86,11 +85,6 @@ function setBusy(btn, busy) {
 }
 
 // ===================== Views =====================
-
-function showView(name) {
-  $('view-login').classList.toggle('hidden', name !== 'login');
-  $('view-app').classList.toggle('hidden', name !== 'app');
-}
 
 function renderHeader() {
   const chip = $('active-email');
@@ -199,7 +193,6 @@ async function refreshInbox({ silent = false } = {}) {
     $('last-updated').textContent = `Diperbarui ${state.lastUpdated.toLocaleTimeString('id-ID')}`;
   } catch (err) {
     if (!silent) renderInboxState('⚠️', escapeHtml(err.message), true);
-    if (err.status === 401) return logout();
   } finally {
     state.busy = false;
     $('btn-create').disabled = false;
@@ -257,7 +250,6 @@ async function openMessage(id) {
     if (copyBtn) copyBtn.addEventListener('click', () => copyText(m.code));
   } catch (err) {
     $('message-detail').innerHTML = `<div class="state-box error-state"><span class="big">❌</span>${escapeHtml(err.message)}</div>`;
-    if (err.status === 401) return logout();
   }
 }
 
@@ -287,7 +279,6 @@ async function createEmail() {
     await refreshInbox(); // refreshInbox mengelola state.busy sendiri
   } catch (err) {
     toast(`❌ Gagal membuat email: ${err.message}`, 'error');
-    if (err.status === 401) return logout();
   } finally {
     setBusy($('btn-create'), false);
   }
@@ -305,38 +296,6 @@ async function switchEmail(email) {
     await refreshInbox();
   } catch (err) {
     toast(`❌ ${err.message}`, 'error');
-    if (err.status === 401) return logout();
-  }
-}
-
-async function logout() {
-  try {
-    await api('/api/logout', { method: 'POST' });
-  } catch {}
-  state.loggedIn = false;
-  showView('login');
-  stopAutoRefresh();
-}
-
-// ===================== Login =====================
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const pw = $('login-password').value;
-  $('login-error').classList.add('hidden');
-  setBusy($('btn-login'), true);
-  try {
-    await api('/api/login', { method: 'POST', body: { password: pw } });
-    state.loggedIn = true;
-    $('login-password').value = '';
-    showView('app');
-    await loadMe();
-    startAutoRefresh();
-  } catch (err) {
-    $('login-error').textContent = err.message;
-    $('login-error').classList.remove('hidden');
-  } finally {
-    setBusy($('btn-login'), false);
   }
 }
 
@@ -361,19 +320,7 @@ function stopAutoRefresh() {
 // ===================== Init =====================
 
 async function init() {
-  // Cek sesi: kalau cookie valid langsung masuk dashboard
-  try {
-    await api('/api/me');
-    state.loggedIn = true;
-    showView('app');
-    await loadMe();
-    startAutoRefresh();
-  } catch (err) {
-    showView('login');
-  }
-
-  $('login-form').addEventListener('submit', handleLogin);
-  $('btn-logout').addEventListener('click', logout);
+  // Dashboard publik — langsung tampil tanpa login
   $('btn-create').addEventListener('click', createEmail);
   $('btn-refresh').addEventListener('click', () => refreshInbox());
   $('btn-back').addEventListener('click', () => {
@@ -383,6 +330,13 @@ async function init() {
   $('btn-copy-email').addEventListener('click', () => {
     if (state.active) copyText(state.active, 'Email tersalin ke clipboard! 📋');
   });
+
+  try {
+    await loadMe();
+    startAutoRefresh();
+  } catch (err) {
+    renderInboxState('⚠️', `Gagal memuat data: ${escapeHtml(err.message)}<br />Coba refresh halaman beberapa saat lagi.`, true);
+  }
 }
 
 init();

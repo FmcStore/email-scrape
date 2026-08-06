@@ -38,12 +38,10 @@ const config = {
   },
 
   // 🌐 Web dashboard (src/web.js)
-  //   - Password default 'admin123' — WAJIB ganti via env WEB_PASSWORD di production!
+  //   - Dashboard bersifat publik (tanpa login/password)
   //   - Port: env PORT otomatis diset Railway; lokal default 3000
   web: {
     port: Number(process.env.PORT) || 3000,
-    password: process.env.WEB_PASSWORD || 'admin123',
-    usingDefaultPassword: !process.env.WEB_PASSWORD,
   },
 
   // Format pesan
