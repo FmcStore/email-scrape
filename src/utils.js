@@ -1,28 +1,6 @@
 /**
- * Helper bersama — dipakai oleh bot Telegram (bot.js) dan web dashboard (src/web.js)
- * supaya format pesan & deteksi kode konsisten di kedua platform.
+ * Helper bersama — dipakai web dashboard (src/web.js).
  */
-
-/**
- * Escape HTML agar aman ditampilkan di Telegram / browser.
- */
-function escHTML(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/**
- * Potong teks panjang + escape HTML (untuk tampilan Telegram).
- */
-function truncate(text, maxLen) {
-  if (!text || text.length <= maxLen) return escHTML(text || '<i>(kosong)</i>');
-  return escHTML(text.slice(0, maxLen)) + '\n\n...<i>(dipotong, terlalu panjang)</i>';
-}
 
 /**
  * Format waktu agar ringkas & konsisten.
@@ -63,4 +41,8 @@ function detectCode(text) {
   return null;
 }
 
-module.exports = { escHTML, truncate, formatTime, detectCode };
+// Pesan generik untuk klien supaya detail internal (traceback Python, dsb.)
+// tidak bocor lewat API.
+const GENERIC_UPSTREAM_ERROR = 'Upstream Emailnator gagal — coba lagi nanti.';
+
+module.exports = { formatTime, detectCode, GENERIC_UPSTREAM_ERROR };

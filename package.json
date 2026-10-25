@@ -1,21 +1,21 @@
 {
-  "name": "emailnator-bot",
+  "name": "emailnator-v2",
   "version": "1.0.0",
-  "description": "🤖 Telegram Bot untuk generate email sementara & cek inbox — powered by Emailnator",
-  "main": "bot.js",
+  "description": "📧 Emailnator web dashboard & REST API — generate disposable email, cek inbox, baca pesan (powered by Emailnator + cloudscraper)",
+  "main": "server.js",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "start": "node bot.js",
-    "dev": "node bot.js",
-    "test": "node examples/usage.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --check server.js && node --check src/web.js && node --check public/app.js && echo ALL_OK"
   },
   "keywords": [
-    "telegram-bot",
     "emailnator",
     "disposable-email",
     "temporary-email",
+    "rest-api",
     "nodejs"
   ],
   "author": "",
@@ -23,7 +23,6 @@
   "dependencies": {
     "better-sqlite3": "^13.0.2",
     "cheerio": "^1.0.0",
-    "express": "^5.2.1",
-    "node-telegram-bot-api": "^0.66.0"
+    "express": "^5.2.1"
   }
 }

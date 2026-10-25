@@ -9,11 +9,13 @@ const PY_SCRIPT = path.join(__dirname, 'emailnator.py');
  * Call Python cloudscraper bridge and return parsed result
  */
 function pyCall(...args) {
+  // Python interpreter bisa dioverride via env PYTHON_BIN (mis. venv lokal).
+  const pythonBin = process.env.PYTHON_BIN || 'python3';
   // Teruskan argumen tanpa shell agar input request tidak bisa menjadi
   // command injection melalui karakter seperti $(), backtick, atau ;.
   let stdout;
   try {
-    stdout = execFileSync('python3', [PY_SCRIPT, ...args.map(String)], {
+    stdout = execFileSync(pythonBin, [PY_SCRIPT, ...args.map(String)], {
       timeout: config.emailnator.timeout,
       encoding: 'utf-8',
     });

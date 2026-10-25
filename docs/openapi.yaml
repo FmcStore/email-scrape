@@ -1,0 +1,372 @@
+openapi: 3.1.0
+info:
+  title: Emailnator Web API
+  version: 2.0.0
+  description: >
+    REST API untuk web dashboard Emailnator — generate disposable email
+    (single & bulk), cek inbox, baca pesan dengan deteksi OTP otomatis,
+    switch & delete email. API publik single-user (tanpa autentikasi):
+    semua pengunjung berbagi satu daftar email bersama.
+servers:
+  - url: http://localhost:3000
+    description: Lokal
+  - url: /
+    description: Deploy (relatif terhadap host deploy)
+tags:
+  - name: system
+  - name: emails
+  - name: inbox
+paths:
+  /api/health:
+    get:
+      tags: [system]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server sehat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                required: [ok]
+
+  /api/me:
+    get:
+      tags: [emails]
+      summary: Email aktif + daftar semua email tersimpan
+      operationId: getMe
+      responses:
+        '200':
+          description: Data email user web
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailState'
+
+  /api/emails:
+    post:
+      tags: [emails]
+      summary: Buat 1 email baru (otomatis jadi email aktif)
+      operationId: createEmail
+      description: Rate limit 10 request/menit per IP.
+      responses:
+        '200':
+          description: Email berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailStateCreated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /api/emails/bulk:
+    post:
+      tags: [emails]
+      summary: Buat banyak email sekaligus (1-10)
+      operationId: createEmailsBulk
+      description: >
+        Email terakhir yang dibuat menjadi email aktif.
+        Rate limit lebih ketat: 3 request/menit per IP.
+        Jika pembuatan gagal di tengah jalan, email yang sudah berhasil
+        tetap tersimpan dan response 502 berisi pesan error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: Semua email berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkCreated'
+        '400':
+          description: count tidak valid (bukan integer 1-10)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /api/emails/switch:
+    post:
+      tags: [emails]
+      summary: Ganti email aktif
+      operationId: switchEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwitchRequest'
+      responses:
+        '200':
+          description: Email aktif diganti
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailState'
+        '404':
+          description: Email tidak ada di daftar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/emails/{email}:
+    delete:
+      tags: [emails]
+      summary: Hapus email dari daftar
+      operationId: deleteEmail
+      description: >
+        Jika email yang dihapus adalah email aktif, email aktif pindah ke
+        email tersisa terakhir (atau null kalau daftar jadi kosong).
+      parameters:
+        - name: email
+          in: path
+          required: true
+          description: Alamat email yang mau dihapus
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailState'
+        '404':
+          description: Email tidak ada di daftar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/inbox:
+    get:
+      tags: [inbox]
+      summary: Daftar pesan di inbox
+      operationId: getInbox
+      parameters:
+        - name: email
+          in: query
+          required: false
+          description: Email tujuan; default email aktif
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar pesan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inbox'
+        '400':
+          description: Belum ada email aktif
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Email tidak terdaftar di dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /api/messages/{id}:
+    get:
+      tags: [inbox]
+      summary: Detail satu pesan + deteksi kode OTP otomatis
+      operationId: getMessage
+      description: >
+        ID pesan bisa memuat titik, dash, @, dsb. — encode dengan
+        encodeURIComponent. Deteksi kode: prioritas 1 OTP 4-8 digit,
+        prioritas 2 token alfanumerik 5-12 karakter berisi angka + huruf.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Message ID dari daftar inbox
+          schema:
+            type: string
+            maxLength: 512
+        - name: email
+          in: query
+          required: false
+          description: Email sumber; default email aktif
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail pesan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageDetail'
+        '400':
+          description: Belum ada email aktif / ID pesan tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Email tidak terdaftar di dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Pesan error yang bisa ditampilkan ke user
+      required: [error]
+
+    EmailState:
+      type: object
+      properties:
+        active:
+          type: [string, 'null']
+          description: Email aktif saat ini (null kalau belum ada)
+        emails:
+          type: array
+          items:
+            type: string
+          description: Semua email tersimpan (urut waktu dibuat)
+      required: [active, emails]
+
+    EmailStateCreated:
+      allOf:
+        - $ref: '#/components/schemas/EmailState'
+        - type: object
+          properties:
+            email:
+              type: string
+              description: Email yang baru dibuat
+          required: [email]
+
+    BulkRequest:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 3
+      required: [count]
+
+    BulkCreated:
+      type: object
+      properties:
+        created:
+          type: array
+          items:
+            type: string
+          description: Email-email yang baru dibuat
+        active:
+          type: [string, 'null']
+        emails:
+          type: array
+          items:
+            type: string
+      required: [created, active, emails]
+
+    SwitchRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email yang mau dijadikan aktif (harus sudah di daftar)
+      required: [email]
+
+    InboxMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Message ID (bisa memuat titik, dash, @, dsb.)
+        from:
+          type: string
+          description: Pengirim
+        subject:
+          type: string
+        time:
+          type: string
+          description: Waktu terformat ringkas (mis. "25 Okt, 09:14")
+        hasCode:
+          type: boolean
+          description: true jika pesan kemungkinan berisi kode OTP/verifikasi
+      required: [id, from, subject, time, hasCode]
+
+    Inbox:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email yang inbox-nya dibaca
+        totalEmails:
+          type: integer
+        emails:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboxMessage'
+      required: [email, totalEmails, emails]
+
+    MessageDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        from:
+          type: string
+        subject:
+          type: string
+        time:
+          type: string
+        text:
+          type: string
+          description: Isi pesan (plain text hasil ekstraksi HTML)
+        code:
+          type: [string, 'null']
+          description: Kode OTP/verifikasi terdeteksi, null kalau tidak ada
+      required: [id, from, subject, time, text, code]
+
+  responses:
+    RateLimited:
+      description: Terlalu banyak permintaan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Terlalu banyak permintaan. Coba lagi nanti.
+
+    UpstreamError:
+      description: Emailnator upstream gagal (Cloudflare/jaringan/ubah layout)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Create failed: 403"

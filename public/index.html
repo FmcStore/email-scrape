@@ -3,68 +3,102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Emailnator Dashboard</title>
+  <title>Emailnator — Email Sementara</title>
+  <meta name="description" content="Dashboard email sementara: buat email single & bulk, cek inbox, deteksi kode OTP otomatis." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- ============ APP (publik, tanpa login) ============ -->
-  <div id="view-app" class="view">
-    <aside class="sidebar">
+  <div id="view-app" class="app">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <span class="brand-icon">📧</span>
+        <span class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6L22 7"/></svg>
+        </span>
         <span class="brand-text">Emailnator</span>
+        <button id="btn-sidebar-close" class="btn-icon sidebar-close" aria-label="Tutup menu">✕</button>
       </div>
 
       <div class="sidebar-section">
         <button id="btn-create" class="btn btn-primary btn-block" disabled>
-          <span class="btn-label">✨ Buat Email Baru</span>
-          <span class="spinner hidden"></span>
+          <span class="btn-label">+ Buat Email Baru</span>
+          <span class="spinner hidden" aria-hidden="true"></span>
         </button>
+
+        <details class="bulk-box" id="bulk-box">
+          <summary class="bulk-summary">⚡ Buat Email Bulk</summary>
+          <div class="bulk-body">
+            <label class="bulk-label" for="bulk-count">Jumlah email (1–10)</label>
+            <div class="bulk-controls">
+              <input id="bulk-count" class="input" type="number" min="1" max="10" step="1" value="3" inputmode="numeric" />
+              <button id="btn-bulk" class="btn btn-secondary" disabled>
+                <span class="btn-label">Buat</span>
+                <span class="spinner hidden" aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="bulk-hint muted">Semua email baru masuk daftar; yang terakhir jadi aktif.</p>
+          </div>
+        </details>
       </div>
 
       <div class="sidebar-section grow">
-        <div class="section-title">Email Tersimpan</div>
-        <div id="email-list" class="email-list">
-          <p class="muted empty-hint">Belum ada email. Klik "Buat Email Baru" untuk mulai 🚀</p>
-        </div>
+        <div class="section-title">Email Tersimpan <span id="email-count" class="count-pill hidden"></span></div>
+        <div id="email-list" class="email-list" role="list"></div>
       </div>
 
       <div class="sidebar-footer">
-        <span class="muted">🔓 Mode publik — semua orang berbagi inbox ini</span>
+        <span class="muted">🔓 Mode publik — satu inbox bersama</span>
       </div>
     </aside>
+    <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
 
+    <!-- ============ MAIN ============ -->
     <main class="main">
       <header class="topbar">
+        <button id="btn-sidebar-open" class="btn-icon menu-btn" aria-label="Buka menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+
         <div class="topbar-left">
-          <h2 id="page-title">📬 Inbox</h2>
+          <h1 id="page-title">📬 Inbox</h1>
           <div class="active-email-wrap">
             <span id="active-email" class="chip">Belum ada email aktif</span>
-            <button id="btn-copy-email" class="btn btn-icon btn-sm" title="Salin email" disabled>📋</button>
+            <button id="btn-copy-email" class="btn-icon" title="Salin email" disabled aria-label="Salin email">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            </button>
           </div>
         </div>
+
         <div class="topbar-actions">
-          <span id="last-updated" class="muted"></span>
-          <button id="btn-refresh" class="btn btn-icon" title="Refresh inbox" disabled>🔄</button>
+          <span id="last-updated" class="muted last-updated"></span>
+          <label class="auto-toggle muted" title="Perbarui inbox otomatis tiap 20 detik">
+            <input type="checkbox" id="chk-auto" checked /> Auto
+          </label>
+          <button id="btn-refresh" class="btn-icon" title="Refresh inbox" disabled aria-label="Refresh inbox">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
         </div>
       </header>
 
+      <!-- Inbox -->
       <section id="view-inbox" class="content">
         <div id="inbox-state" class="state-box hidden"></div>
         <div id="inbox-list" class="inbox-list"></div>
       </section>
 
+      <!-- Detail pesan -->
       <section id="view-message" class="content hidden">
-        <button id="btn-back" class="btn btn-ghost">⬅️ Kembali ke Inbox</button>
+        <button id="btn-back" class="btn btn-ghost btn-back">← Kembali ke Inbox</button>
         <div id="message-detail"></div>
       </section>
     </main>
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>

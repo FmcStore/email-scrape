@@ -66,4 +66,26 @@ function addEmail(chatId, email) {
   db.prepare('INSERT OR IGNORE INTO emails (chat_id, email) VALUES (?, ?)').run(chatId, email);
 }
 
-module.exports = { getUser, setActive, addEmail };
+/**
+ * Hapus email dari daftar user.
+ * - Jika email yang dihapus adalah email aktif, aktif dipindah ke email
+ *   tersisa terakhir (atau NULL kalau daftar jadi kosong).
+ * - Return { active, list } terbaru.
+ */
+function removeEmail(chatId, email) {
+  const user = getUser(chatId);
+  if (!user.list.includes(email)) return user;
+  db.prepare('DELETE FROM emails WHERE chat_id = ? AND email = ?').run(chatId, email);
+  const remaining = user.list.filter((e) => e !== email);
+  if (user.active === email) {
+    const nextActive = remaining.length ? remaining[remaining.length - 1] : null;
+    if (nextActive) {
+      db.prepare('UPDATE users SET active = ? WHERE chat_id = ?').run(nextActive, chatId);
+    } else {
+      db.prepare('DELETE FROM users WHERE chat_id = ?').run(chatId);
+    }
+  }
+  return getUser(chatId);
+}
+
+module.exports = { getUser, setActive, addEmail, removeEmail };
