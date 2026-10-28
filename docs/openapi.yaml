@@ -8,10 +8,10 @@ info:
     switch & delete email. API publik single-user (tanpa autentikasi):
     semua pengunjung berbagi satu daftar email bersama.
 servers:
+  - url: https://email.gemarin.ai.id
+    description: Production
   - url: http://localhost:3000
     description: Lokal
-  - url: /
-    description: Deploy (relatif terhadap host deploy)
 tags:
   - name: system
   - name: emails

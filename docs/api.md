@@ -1,6 +1,6 @@
 # Emailnator REST API
 
-Base URL: `http://localhost:3000` (atau URL deploy kamu).
+Base URL: **`https://email.gemarin.ai.id`** (production) · lokal: `http://localhost:3000`
 
 Spesifikasi formal: [openapi.yaml](openapi.yaml).
 
@@ -23,7 +23,7 @@ Spesifikasi formal: [openapi.yaml](openapi.yaml).
 Health check.
 
 ```bash
-curl -s localhost:3000/api/health
+curl -s https://email.gemarin.ai.id/api/health
 ```
 
 ```json
@@ -37,7 +37,7 @@ curl -s localhost:3000/api/health
 Email aktif + seluruh daftar email tersimpan.
 
 ```bash
-curl -s localhost:3000/api/me
+curl -s https://email.gemarin.ai.id/api/me
 ```
 
 ```json
