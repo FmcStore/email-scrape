@@ -1,4 +1,4 @@
-const { execFileSync } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const cheerio = require('cheerio');
 const config = require('./config');
@@ -6,34 +6,66 @@ const config = require('./config');
 const PY_SCRIPT = path.join(__dirname, 'emailnator.py');
 
 /**
- * Call Python cloudscraper bridge and return parsed result
+ * Call Python stealth-browser bridge ASYNC via spawn.
+ *
+ * PENTING: jangan pakai execFileSync/execSync di sini — itu memblok event loop
+ * Node secara total, sehingga selama bridge jalan (15-90 dtk, spawn Chromium)
+ * SEMUA request lain (termasuk /api/health) tidak terjawab dan web tampak mati.
+ * spawn + promise membuat event loop tetap hidup selama bridge bekerja.
  */
 function pyCall(...args) {
   // Python interpreter dengan patchright (stealth Chromium) untuk bypass Cloudflare.
   const pythonBin = process.env.PYTHON_BIN || '/home/agentuser/.venvs/pw/bin/python3';
   // Browser stealth butuh waktu start (~10-15 dtk) + navigasi — beri timeout longgar.
-  const timeout = Math.max(config.emailnator.timeout, 90000);
-  let stdout;
-  try {
-    stdout = execFileSync(pythonBin, [PY_SCRIPT, ...args.map(String)], {
-      timeout,
-      encoding: 'utf-8',
-    });
-  } catch (err) {
-    // Python exited non-zero — it prints a JSON error to stdout
-    try {
-      return JSON.parse(err.stdout);
-    } catch {}
-    throw new Error(err.stderr?.trim() || err.message);
-  }
+  const timeout = Math.max(config.emailnator.timeout, 120000);
 
-  // `create`/`inbox` return JSON, but `read` returns raw message HTML.
-  // Only require JSON when the output actually is JSON.
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    return stdout;
-  }
+  return new Promise((resolve, reject) => {
+    const child = spawn(pythonBin, [PY_SCRIPT, ...args.map(String)], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        child.kill('SIGKILL');
+        reject(new Error(`Bridge timeout setelah ${timeout}ms`));
+      }
+    }, timeout);
+
+    child.stdout.on('data', (d) => (stdout += d));
+    child.stderr.on('data', (d) => (stderr += d));
+
+    child.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+      }
+    });
+
+    child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (code !== 0) {
+        // Python exited non-zero — it prints a JSON error to stdout
+        try {
+          return resolve(JSON.parse(stdout));
+        } catch {}
+        return reject(new Error(stderr.trim() || `Bridge exit ${code}`));
+      }
+      // `create`/`inbox` return JSON, but `read` may return raw text.
+      try {
+        resolve(JSON.parse(stdout));
+      } catch {
+        resolve(stdout);
+      }
+    });
+  });
 }
 
 /**
@@ -146,7 +178,7 @@ class Emailnator {
    * @returns {{email: string}}
    */
   async create() {
-    const result = pyCall('create');
+    const result = await pyCall('create');
     if (result.error) throw new Error(result.error);
     // Bridge baru mengembalikan {email: "str"}; toleransi untuk format lama (array).
     const email = Array.isArray(result.email) ? result.email[0] : result.email;
@@ -161,7 +193,7 @@ class Emailnator {
    */
   async getInbox(email) {
     if (!email) throw new Error('Email is required');
-    const result = pyCall('inbox', email);
+    const result = await pyCall('inbox', email);
     if (result.error) throw new Error(result.error);
 
     const messages = result.messageData || [];
@@ -193,7 +225,7 @@ class Emailnator {
    * @returns {{id, from, subject, text, time}}
    */
   async getMessage(email, messageID) {
-    const body = pyCall('read', email, messageID);
+    const body = await pyCall('read', email, messageID);
     if (body.error) throw new Error(body.error);
 
     // Some responses are JSON metadata ({from, subject, time, message})
