@@ -9,14 +9,14 @@ const PY_SCRIPT = path.join(__dirname, 'emailnator.py');
  * Call Python cloudscraper bridge and return parsed result
  */
 function pyCall(...args) {
-  // Python interpreter bisa dioverride via env PYTHON_BIN (mis. venv lokal).
-  const pythonBin = process.env.PYTHON_BIN || 'python3';
-  // Teruskan argumen tanpa shell agar input request tidak bisa menjadi
-  // command injection melalui karakter seperti $(), backtick, atau ;.
+  // Python interpreter dengan patchright (stealth Chromium) untuk bypass Cloudflare.
+  const pythonBin = process.env.PYTHON_BIN || '/home/agentuser/.venvs/pw/bin/python3';
+  // Browser stealth butuh waktu start (~10-15 dtk) + navigasi — beri timeout longgar.
+  const timeout = Math.max(config.emailnator.timeout, 90000);
   let stdout;
   try {
     stdout = execFileSync(pythonBin, [PY_SCRIPT, ...args.map(String)], {
-      timeout: config.emailnator.timeout,
+      timeout,
       encoding: 'utf-8',
     });
   } catch (err) {
@@ -148,7 +148,8 @@ class Emailnator {
   async create() {
     const result = pyCall('create');
     if (result.error) throw new Error(result.error);
-    const email = Array.isArray(result.email) ? result.email[0] : null;
+    // Bridge baru mengembalikan {email: "str"}; toleransi untuk format lama (array).
+    const email = Array.isArray(result.email) ? result.email[0] : result.email;
     if (!email) throw new Error('Unexpected response from Emailnator (no email returned)');
     return { email };
   }
