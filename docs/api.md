@@ -58,7 +58,7 @@ Buat **1 email baru**. Email baru otomatis menjadi email aktif.
 Rate limit: **10 request/menit per IP** → 429 kalau terlampaui.
 
 ```bash
-curl -s -X POST localhost:3000/api/emails
+curl -s -X POST https://email.gemarin.ai.id/api/emails
 ```
 
 ```json
@@ -86,7 +86,7 @@ Body:
 | `count` | integer 1–10 | ya | Jumlah email yang dibuat |
 
 ```bash
-curl -s -X POST localhost:3000/api/emails/bulk \
+curl -s -X POST https://email.gemarin.ai.id/api/emails/bulk \
   -H 'Content-Type: application/json' \
   -d '{"count": 3}'
 ```
@@ -115,7 +115,7 @@ Body:
 | `email` | string | ya | Email yang mau dijadikan aktif |
 
 ```bash
-curl -s -X POST localhost:3000/api/emails/switch \
+curl -s -X POST https://email.gemarin.ai.id/api/emails/switch \
   -H 'Content-Type: application/json' \
   -d '{"email": "xxxx@gmail.com"}'
 ```
@@ -136,7 +136,7 @@ curl -s -X POST localhost:3000/api/emails/switch \
 Hapus email dari daftar. Jika email yang dihapus adalah email aktif, email aktif pindah ke email tersisa terakhir (atau `null` kalau daftar jadi kosong).
 
 ```bash
-curl -s -X DELETE localhost:3000/api/emails/aaa@gmail.com
+curl -s -X DELETE https://email.gemarin.ai.id/api/emails/aaa@gmail.com
 ```
 
 ```json
@@ -161,8 +161,8 @@ Query:
 | `email` | string | tidak | Email tujuan; default email aktif |
 
 ```bash
-curl -s "localhost:3000/api/inbox"
-curl -s "localhost:3000/api/inbox?email=xxxx@gmail.com"
+curl -s "https://email.gemarin.ai.id/api/inbox"
+curl -s "https://email.gemarin.ai.id/api/inbox?email=xxxx@gmail.com"
 ```
 
 ```json
@@ -208,8 +208,8 @@ Query:
 | `email` | string | tidak | Email sumber; default email aktif |
 
 ```bash
-curl -s "localhost:3000/api/messages/MSGID1"
-curl -s "localhost:3000/api/messages/MSGID1?email=xxxx@gmail.com"
+curl -s "https://email.gemarin.ai.id/api/messages/MSGID1"
+curl -s "https://email.gemarin.ai.id/api/messages/MSGID1?email=xxxx@gmail.com"
 ```
 
 ```json
